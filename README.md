@@ -64,5 +64,9 @@ POST /v2/projects/PROJECT_ID
 
 The response from the server is a JSON as well, it contains a property `licenses_red` with the number of dependencies which violate the license whitelist on the server. If the value is 0 everything is OK. If the value is greater than 0 there are as many dependencies in the project which violate the license whitelist. In that case the SBT plugin should exit with an Exception, so that it would break the build on any CI Server. Please take a look how it works on the [VersionEye Maven Plugin](https://github.com/versioneye/versioneye_maven_plugin#mvn-versioneyelicensecheck).
 
+### Configuration 
+
+The VersionEye SBT plugin will be used in Enterprise environments together with [VersionEye Enterprise](https://www.versioneye.com/enterprise). That's why it's very important that the URLs are not hardcoded. The URL and Port to the VersionEye API has to be configurable. Either in the SBT project file itself or in a `versioneye.properties` file for example. The corresponding Endpoints at the VersionEye API require an API Key. The key has to be configurable as well, either in the SBT project file or a `versioneye.properties` file. 
+
 
 
