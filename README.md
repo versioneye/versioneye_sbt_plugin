@@ -30,5 +30,21 @@ would resolve all dependencies locally, create the `pom.json` file and upload it
 POST /v2/projects
 ```
 
-Please take a look how it works on the [VersionEye Maven Plugin](https://github.com/versioneye/versioneye_maven_plugin#mvn-versioneyecreate). 
+The response from the server is a JSON as well, it contains the new project ID and some additional informations. The SBT plugin should store the project ID somewhere, for example in a `versioneye.properties` file. Please take a look how it works on the [VersionEye Maven Plugin](https://github.com/versioneye/versioneye_maven_plugin#mvn-versioneyecreate). 
+
+### Updating a project 
+
+The VersionEye SBT Plugin should be able to update an existing project at VersionEye with the dependencies from the current SBT project file. Ideally a command like this: 
+
+```
+sbt versioneye:update
+```
+
+would read the project ID from a properties file, for example `versioneye.properites`, resolve all dependencies locally, create the `pom.json` file and upload it via HTTP POST to this endpoint: 
+
+```
+POST /v2/projects/PROJECT_ID
+```
+
+The response from the server is a JSON as well, it contains the status of the project. The SBT plugin should out put the number of out-dated dependencies in the console. Please take a look how it works on the [VersionEye Maven Plugin](https://github.com/versioneye/versioneye_maven_plugin#mvn-versioneyeupdate). 
 
