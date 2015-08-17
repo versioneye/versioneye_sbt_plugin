@@ -1,6 +1,6 @@
 # VersionEye SBT Plugin
 
-This is teh VersionEye SBT Plugin for scala projects. This project is under construtciton. 
+This is the VersionEye SBT Plugin for scala projects. This project is under construtciton. **I'm looking for somebody to implement this requirements**. 
 
 ## Requirements 
 
