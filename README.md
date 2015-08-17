@@ -2,7 +2,7 @@
 
 This is the VersionEye SBT Plugin for scala projects. This project is under construtciton. 
 
-**I'm looking for somebody to implement this requirements**. 
+**I'm looking for somebody to implement this requirements**. Please contact me on [Twitter](https://twitter.com/RobertReiz) if you would like to implement this plugin. 
 
 ## Requirements 
 
