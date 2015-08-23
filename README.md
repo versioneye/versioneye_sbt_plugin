@@ -68,7 +68,23 @@ The response from the server is a JSON as well, it contains a property `licenses
 
 ### Configuration 
 
-The VersionEye SBT plugin will be used in Enterprise environments together with [VersionEye Enterprise](https://www.versioneye.com/enterprise). That's why it's very important that the URLs are not hardcoded. The URL and Port to the VersionEye API has to be configurable. Either in the SBT project file itself or in a `versioneye.properties` file for example. The corresponding Endpoints at the VersionEye API require an API Key. The key has to be configurable as well, either in the SBT project file or a `versioneye.properties` file. 
+The VersionEye SBT plugin will be used in Enterprise environments together with [VersionEye Enterprise](https://www.versioneye.com/enterprise). That's why it's very important that the URLs are not hardcoded. The URL and Port to the VersionEye API has to be configurable. Either in the SBT project file itself or in a `versioneye.properties` file for example. The corresponding Endpoints at the VersionEye API require an API Key. The key has to be configurable as well, either in the SBT project file or a `versioneye.properties` file.
+ 
+## Usage
+
+Add to your `project/plugins.sbt` the plugin:
+
+```
+addSbtPlugin("com.versioneye" % "sbt-versioneye-plugin" % "0.1-SNAPSHOT")
+```
+
+Enable it within your `build.sbt`
+
+```
+enablePlugins(VersionEyePlugin)
+```
+
+
 
 
 
