@@ -13,7 +13,7 @@ licenses <<= version(v => Seq("MIT" -> url(
 scalaVersion := "2.10.2"
 
 libraryDependencies ++= Seq("com.fasterxml.jackson.module" %%  "jackson-module-scala" % "2.6.1",
-"org.scala-lang" %  "scala-library" % "2.10.2")
+"org.scala-lang" %  "scala-library" % "2.10.2", "org.scalaj" %% "scalaj-http" % "1.1.5")
 
 publishArtifact in Test := false
 publishMavenStyle := true
