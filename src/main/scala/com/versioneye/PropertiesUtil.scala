@@ -12,26 +12,40 @@ object PropertiesUtil {
 
   protected val propertiesFile: String = "versioneye.properties"
 
+  def writeProperties(response: ProjectJsonResponse, propertiesFile: File): Unit = {
+    var properties: Properties = null
 
-  def writeProperties(response: ProjectJsonResponse, path: String): Unit = {
-    val properties = fetchProjectProperties(path)
+    if (!propertiesFile.exists()) {
+      createPropertiesFile(propertiesFile)
+      properties = new Properties()
+    }
+    else {
+      properties = loadProperties(propertiesFile)
+    }
+
+
     if (response.getId != null) {
       properties.setProperty("project_id", response.getId)
     }
 
-    val file = new File(path)
-    val fos = new FileOutputStream(file)
+    val fos = new FileOutputStream(propertiesFile)
     properties.store(fos, " Properties for http://www.VersionEye.com")
-
+    fos.close()
   }
 
-  private def fetchProjectProperties(path: String): Properties = {
-    val file: File = new File(path)
-    if (!file.exists) createPropertiesFile(file)
+  def getProperties(propertiesFile: File): Properties = {
+    return loadProperties(propertiesFile)
+  }
 
+  private def loadProperties(file: File): Properties = {
+    if (!file.exists) {
+      return null
+    }
 
     val properties = new Properties()
-    properties.load(Source.fromFile(file).reader())
+    val reader = Source.fromFile(file).reader()
+    properties.load(reader)
+    reader.close()
     return properties
   }
 
@@ -43,29 +57,39 @@ object PropertiesUtil {
     file.createNewFile
   }
 
+  def getPropertiesFile(properties: String, projectDirectory: File, withHome: Boolean): File = {
+    val candidates = getPropertyFileCandidates(properties, projectDirectory, false)
+    val firstFile = candidates.find(_.exists())
+    return firstFile.orElse(candidates.find(!_.exists())).get
+  }
 
-  def getPropertiesPath(properties: String, projectDirectory: File): String = {
+  def containing(key: String, file: File): Boolean = {
+    if (!file.exists()) {
+      return false
+    }
 
+    return loadProperties(file).containsKey(key)
+  }
+
+  def getPropertiesFileContainingProperty(key: String, properties: String, projectDirectory: File): Option[File] = {
+    val candidates = getPropertyFileCandidates(properties, projectDirectory, true)
+    val firstFile = candidates.find(containing(key, _))
+    return firstFile
+  }
+
+  def getPropertyFileCandidates(properties: String, projectDirectory: File, withHome: Boolean): Seq[File] = {
     if (!properties.isEmpty) {
-      return properties;
+      return Seq(new File(properties));
     }
 
-    var propertiesPath: String = "src/qa/resources/" + propertiesFile
-    var file: File = new File(projectDirectory, propertiesPath)
-    if (!file.exists) {
-      propertiesPath = "src/main/resources/" + propertiesFile
-      file = new File(projectDirectory, propertiesPath)
-    }
-    if (!file.exists) {
-      propertiesPath = System.getProperty("user.home") + "/.m2/" + propertiesFile
-      file = new File(propertiesPath)
-    }
-    if (!file.exists) {
-      propertiesPath = "src/main/resources/" + propertiesFile
-      file = new File(projectDirectory, propertiesPath)
-    }
+    var qaResources = new File(projectDirectory, "src/qa/resources/" + propertiesFile)
+    var mainResources = new File(projectDirectory, "src/main/resources/" + propertiesFile)
+    var userHome = new File(System.getProperty("user.home") + "/.m2/" + propertiesFile)
 
-    return propertiesPath
+    if (withHome)
+      return Seq(qaResources, mainResources, userHome)
+    else
+      return Seq(qaResources, mainResources)
   }
 
 }

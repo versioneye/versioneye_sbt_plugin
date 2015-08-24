@@ -1,17 +1,16 @@
 package com.versioneye
 
-import java.io.{File, _}
-import java.util.Properties
+import java.io._
 import java.util.concurrent.TimeUnit
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.fasterxml.jackson.module.scala.experimental.ScalaObjectMapper
+import com.versioneye.PropertiesUtil._
 import sbt.Keys._
 import sbt._
 
 import scala.collection.mutable.ListBuffer
-import scala.io.Source
 import scalaj.http._
 
 /**
@@ -22,15 +21,18 @@ object VersionEyePlugin extends sbt.AutoPlugin {
   object autoImport {
 
     val versioneye = config("versioneye").hide
-    lazy val create = taskKey[Unit]("Create a new project at VersionEye")
+    lazy val createProject = taskKey[Unit]("Create a new project at VersionEye")
+    lazy val updateProject = taskKey[Unit]("Updates an existing project at VersionEye with the dependencies from the current project")
+    lazy val licenseCheck = taskKey[Unit](" Updates an existing project at VersionEye with the dependencies from the current project AND  ensures that all used licenses are on a whitelist. If that is not the case it breaks the build.")
     lazy val json = taskKey[Unit]("Create a pom.json containing the direct dependencies")
 
     val apiKey = settingKey[String]("Your secret API Key for the VersionEye API. Get it here: https://www.versioneye.com/settings/api")
     val baseUrl = settingKey[String]("Set the base URL for the VersionEye API. Only needed for VersionEye Enterprise!")
     val apiPath = settingKey[String]("apiPath")
+    val existingProjectId = settingKey[String]("existingProjectId")
     val propertiesPath = settingKey[String]("propertiesPath")
     val proxyHost = settingKey[String]("Set your proxy host name or IP")
-    val proxyPort = settingKey[Int]("Set your proxy port here.")
+    val proxyPort = settingKey[Int]("Set your proxy port here")
     val proxyUser = settingKey[String]("Set you proxy user name here")
     val proxyPassword = settingKey[String]("Set your proxy password here")
     val updatePropertiesAfterCreate = settingKey[Boolean]("updatePropertiesAfterCreate")
@@ -40,7 +42,7 @@ object VersionEyePlugin extends sbt.AutoPlugin {
     val nameStrategy = settingKey[String]("If a new project is created the plugin will take the name attribute from the build.sbt as the name of the project at VersionEye. Possible values: name, GA, artifact_id")
     val trackPlugins = settingKey[Boolean]("By default the plugins who are defined in the build.sbt file are handled like regular dependencies with the \"plugin\" scope. Plugins can be ignored by setting this property to \"false\".")
     val licenseCheckBreakByUnknown = settingKey[Boolean]("If this is true then the goal \"versioneye:licenseCheck\" will break the build if there is a component without any license.")
-    val skipScopes = settingKey[String]("Comma seperated list of scopes which should be ignored by this plugin.")
+    val skipScopes = settingKey[String]("Comma separated list of scopes which should be ignored by this plugin.")
 
     // default values for the tasks and settings
     lazy val versionEyeSettings: Seq[Def.Setting[_]] = Seq(
@@ -53,6 +55,7 @@ object VersionEyePlugin extends sbt.AutoPlugin {
       proxyUser := "",
       proxyPassword := "",
       parentGroupId := "",
+      existingProjectId := "",
       parentArtifactId := "",
       updatePropertiesAfterCreate := true,
       mergeAfterCreate := true,
@@ -71,7 +74,9 @@ object VersionEyePlugin extends sbt.AutoPlugin {
     versionEyeSettings ++
       inConfig(versioneye)(Seq(
         json := jsonTask.value,
-        create := createTask.value
+        createProject := createTask.value,
+        updateProject := updateTask.value,
+        licenseCheck := licenseCheckTask.value
       )
       ) ++
       inConfig(versioneye)(Seq())
@@ -107,6 +112,10 @@ object VersionEyePlugin extends sbt.AutoPlugin {
       "group_id" -> organization.value, "artifact_id" -> name.value,
       "language" -> "Scala", "prod_type" -> "Sbt", "dependencies" -> dependencies)
 
+    if (dependencies.isEmpty) {
+      streams.value.log.info("There are no dependencies in this project !" + organization.value + " / " + name.value)
+    }
+
     val bytes: Array[Byte] = toJsonBytes(pom)
 
     val file = target.value / "pom.json"
@@ -136,10 +145,11 @@ object VersionEyePlugin extends sbt.AutoPlugin {
       "language" -> "Scala", "prod_type" -> "Sbt", "dependencies" -> dependencies)
 
     if (dependencies.isEmpty) {
-      log.info("There are no dependencies in this project !" + organization.value + " / " + name.value)
+      streams.value.log.info("There are no dependencies in this project !" + organization.value + " / " + name.value)
     }
 
-    val apiKeyValue = getApiKey(apiKey.value)
+
+    val apiKeyValue = getApiKey(apiKey.value, propertiesPath.value, baseDirectory.value)
     val url = getUrl(baseUrl.value, apiPath.value, "/projects?api_key=" + apiKeyValue)
     val bytes = toJsonBytes(pom)
 
@@ -157,13 +167,98 @@ object VersionEyePlugin extends sbt.AutoPlugin {
     }
 
     if (updatePropertiesAfterCreate.value) {
-      PropertiesUtil.writeProperties(projectResponse, PropertiesUtil.getPropertiesPath(propertiesPath.value, baseDirectory.value))
+      writeProperties(projectResponse, getPropertiesFile(propertiesPath.value, baseDirectory.value, false))
     }
     prettyPrint(log, baseUrl.value, projectResponse)
   }
 
-  def prettyPrint(log: Logger, baseUrl: String, projectResponse: ProjectJsonResponse): Unit = {
+
+  /**
+   * Update a VersionEye project.
+   */
+  private def updateTask = Def.task {
+    val log = streams.value.log
+
     log.info(".")
+    log.info("Starting to upload dependencies. This can take a couple seconds ... ")
+    log.info(".")
+
+    val scopes: List[String] = getScopes(skipScopes.value)
+    val dependencies = dependencyArray(scopes, libraryDependencies.value)
+    val pom = Map("name" -> getName(name.value, organization.value, description.value, nameStrategy.value),
+      "group_id" -> organization.value, "artifact_id" -> name.value,
+      "language" -> "Scala", "prod_type" -> "Sbt", "dependencies" -> dependencies)
+
+    if (dependencies.isEmpty) {
+      streams.value.log.info("There are no dependencies in this project !" + organization.value + " / " + name.value)
+    }
+
+    val apiKeyValue = getApiKey(apiKey.value, propertiesPath.value, baseDirectory.value)
+    val projectIdValue = getVersionEyeProjectId(existingProjectId.value, propertiesPath.value, baseDirectory.value)
+    val url = getUrl(baseUrl.value, apiPath.value, "/projects/", projectIdValue, "?api_key=" + apiKeyValue)
+    val bytes = toJsonBytes(pom)
+
+    val proxyConfig = ProxyConfig(proxyHost.value, proxyPort.value, proxyUser.value, proxyPassword.value)
+
+    val request = getHttpRequest(url, proxyConfig).postMulti(MultiPart("project_file", "pom.json", "application/json", bytes))
+    val response = request.asString
+
+    handleResponseErrorIfAny(response)
+
+    val projectResponse = getResponse(response)
+
+    prettyPrint(log, baseUrl.value, projectResponse)
+  }
+
+  /**
+   * Upload and check license whitelisting of a VersionEye project.
+   */
+  private def licenseCheckTask = Def.task {
+    val log = streams.value.log
+
+    log.info(".")
+    log.info("Starting to upload dependencies for license check. This can take a couple seconds ... ")
+    log.info(".")
+
+    val scopes: List[String] = getScopes(skipScopes.value)
+    val dependencies = dependencyArray(scopes, libraryDependencies.value)
+    val pom = Map("name" -> getName(name.value, organization.value, description.value, nameStrategy.value),
+      "group_id" -> organization.value, "artifact_id" -> name.value,
+      "language" -> "Scala", "prod_type" -> "Sbt", "dependencies" -> dependencies)
+
+    if (dependencies.isEmpty) {
+      streams.value.log.info("There are no dependencies in this project !" + organization.value + " / " + name.value)
+    }
+
+
+    val apiKeyValue = getApiKey(apiKey.value, propertiesPath.value, baseDirectory.value)
+    val projectIdValue = getVersionEyeProjectId(existingProjectId.value, propertiesPath.value, baseDirectory.value)
+    val url = getUrl(baseUrl.value, apiPath.value, "/projects/", projectIdValue, "?api_key=" + apiKeyValue)
+    val bytes = toJsonBytes(pom)
+
+    val proxyConfig = ProxyConfig(proxyHost.value, proxyPort.value, proxyUser.value, proxyPassword.value)
+
+    val request = getHttpRequest(url, proxyConfig).postMulti(MultiPart("project_file", "pom.json", "application/json", bytes))
+    val response = request.asString
+
+    handleResponseErrorIfAny(response)
+
+    val projectResponse = getResponse(response)
+
+    if (projectResponse.getLicenses_red > 0) {
+      throw new IllegalStateException("Some components violate the license whitelist! " + "More details here: " + baseUrl + "/user/projects/" + projectResponse.getId)
+    }
+
+    if (projectResponse.getLicenses_unknown > 0 && licenseCheckBreakByUnknown.value) {
+      throw new IllegalStateException("Some components are without any license! " + "More details here: " + baseUrl + "/user/projects/" + projectResponse.getId)
+    }
+
+    prettyPrint(log, baseUrl.value, projectResponse)
+    log.info("Everything is is fine.")
+  }
+
+  def prettyPrint(log: Logger, baseUrl: String, projectResponse: ProjectJsonResponse): Unit = {
+    log.info("")
     log.info("Project name: " + projectResponse.getName)
     log.info("Project id: " + projectResponse.getId)
     log.info("Dependencies: " + projectResponse.getDep_number)
@@ -228,7 +323,6 @@ object VersionEyePlugin extends sbt.AutoPlugin {
     }
 
     return body
-
   }
 
   def getUrl(values: String*): String = {
@@ -257,14 +351,54 @@ object VersionEyePlugin extends sbt.AutoPlugin {
     return http
   }
 
-  def getApiKey(value: String): String = {
+  /**
+   * Load the API key from project key or a properties file (Home/.m2/, src/qa/resources, src/main/resources)
+   */
+  def getApiKey(apiKey: String, propertiesFile: String, baseDirectory: File): String = {
 
-    if (value == null || value.isEmpty) {
-      val msg = "versioneye.properties found but without an API Key! Read the instructions at https://github.com/versioneye/versioneye_maven_plugin"
-      throw new IllegalStateException(msg)
+    if (!apiKey.isEmpty) {
+      return apiKey
     }
 
-    return value
+    val option = getPropertiesFileContainingProperty("api_key", propertiesFile, baseDirectory)
+
+    if (option.isEmpty) {
+      val file = getPropertiesFile(propertiesFile, baseDirectory, true)
+      if (file.exists()) {
+        throw new IllegalStateException("versioneye.properties found but without api_key! Read the instructions at https://github.com/versioneye/versioneye_maven_plugin")
+
+      }
+      else {
+        throw new IllegalStateException("apiKey is not specified and versioneye.properties not found")
+      }
+    }
+
+    return getProperties(option.get).getProperty("api_key")
+  }
+
+  /**
+   * Load the VersionEye Project id from project key or a properties file (Home/.m2/, src/qa/resources, src/main/resources)
+   */
+  def getVersionEyeProjectId(projectId: String, propertiesFile: String, baseDirectory: File): String = {
+    if (!projectId.isEmpty) {
+      return projectId
+    }
+
+    val option = getPropertiesFileContainingProperty("project_id", propertiesFile, baseDirectory)
+
+    if (option.isEmpty) {
+      val file = getPropertiesFile(propertiesFile, baseDirectory, true)
+      if (file.exists()) {
+        throw new IllegalStateException("versioneye.properties found but without project_id! Read the instructions at https://github.com/versioneye/versioneye_maven_plugin")
+
+      }
+      else {
+        throw new IllegalStateException("projectId is not specified and versioneye.properties not found")
+      }
+    }
+
+    return getProperties(option.get).getProperty("project_id")
+
   }
 
   /**
