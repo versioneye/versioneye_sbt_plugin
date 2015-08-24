@@ -49,8 +49,6 @@ Creates a `pom.json` file in the `target` dir (usually `target/pom.json`).
 
 ## API Key
 
-The VersionEye SBT plugin will be used in Enterprise environments together with [VersionEye Enterprise](https://www.versioneye.com/enterprise). That's why it's very important that the URLs are not hardcoded. The URL and Port to the VersionEye API has to be configurable. Either in the SBT project file itself or in a `versioneye.properties` file for example. The corresponding Endpoints at the VersionEye API require an API Key. The key has to be configurable as well, either in the SBT project file or a `versioneye.properties` file.
-
 This plugin can obtain the API key from any of the following property files (in this precedence):
 
 1. Configured property file in the SBT build (`apiKey in versioneye := "myApiKey"`)
