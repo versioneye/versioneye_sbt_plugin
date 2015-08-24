@@ -41,6 +41,8 @@ Requires the `projectId` to be set (see [Project Id](#project-id))
 
 ## Create a pom.json
 
+Creates a `pom.json` file in the `target` dir (usually `target/pom.json`).
+
 `sbt versioneye:json`
 
 # Configuration 
