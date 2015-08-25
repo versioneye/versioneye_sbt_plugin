@@ -418,7 +418,7 @@ object VersionEyePlugin extends sbt.AutoPlugin {
     modules.foreach(module => {
       val scope = toJsonScope(module.configurations)
       if (scopes.contains(scope)) {
-        val map = Map("name" -> module.organization, "version" -> module.revision, "scope" -> scope)
+        val map = Map("name" -> (module.organization + ":" + module.name), "version" -> module.revision, "scope" -> scope)
         result += map
       }
     }
