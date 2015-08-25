@@ -2,8 +2,8 @@ sbtPlugin := true
 organization := "com.versioneye"
 name := "sbt-versioneye-plugin"
 version := "0.1-SNAPSHOT"
-organizationHomepage := Some(new URL("http://VersionEye.com"))
-description := "This is the sbt plugin for http://www.VersionEye.com. It allows you to create and update a project at VersionEye. You can find a complete documentation of this project on GitHub: https://github.com/versioneye/versioneye_sbt_plugin."
+organizationHomepage := Some(new URL("https://www.versioneye.com"))
+description := "This is the sbt plugin for https://www.VersionEye.com. It allows you to create and update a project at VersionEye. You can find a complete documentation of this project on GitHub: https://github.com/versioneye/versioneye_sbt_plugin."
 startYear := Some(2015)
 homepage := Some(url("https://github.com/versioneye/versioneye_sbt_plugin"))
 

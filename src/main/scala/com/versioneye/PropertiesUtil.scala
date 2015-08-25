@@ -29,7 +29,7 @@ object PropertiesUtil {
     }
 
     val fos = new FileOutputStream(propertiesFile)
-    properties.store(fos, " Properties for http://www.VersionEye.com")
+    properties.store(fos, " Properties for https://www.VersionEye.com")
     fos.close()
   }
 
