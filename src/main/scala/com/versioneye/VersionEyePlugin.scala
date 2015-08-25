@@ -246,11 +246,11 @@ object VersionEyePlugin extends sbt.AutoPlugin {
     val projectResponse = getResponse(response)
 
     if (projectResponse.getLicenses_red > 0) {
-      throw new IllegalStateException("Some components violate the license whitelist! " + "More details here: " + baseUrl + "/user/projects/" + projectResponse.getId)
+      throw new IllegalStateException("Some components violate the license whitelist! " + "More details here: " + baseUrl.value + "/user/projects/" + projectResponse.getId)
     }
 
     if (projectResponse.getLicenses_unknown > 0 && licenseCheckBreakByUnknown.value) {
-      throw new IllegalStateException("Some components are without any license! " + "More details here: " + baseUrl + "/user/projects/" + projectResponse.getId)
+      throw new IllegalStateException("Some components are without any license! " + "More details here: " + baseUrl.value + "/user/projects/" + projectResponse.getId)
     }
 
     prettyPrint(log, baseUrl.value, projectResponse)
