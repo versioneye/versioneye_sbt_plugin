@@ -104,6 +104,7 @@ project_id=55db6cf87a7c24000c03943d
 | proxyUser                     | Set you proxy user name here|
 | skipScopes                    | Comma separated list of scopes which should be ignored by this plugin (e.g. compile, provided)|
 | updatePropertiesAfterCreate   | updatePropertiesAfterCreate |
+| filterScalaLangDependencies   | By default the scala-library dependency is not tracked. The scala-library dependency can be enabled for tracking by setting this property to `false`. |
 
 
  
