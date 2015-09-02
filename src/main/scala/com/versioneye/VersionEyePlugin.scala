@@ -41,6 +41,7 @@ object VersionEyePlugin extends sbt.AutoPlugin {
     val parentArtifactId = settingKey[String]("If the plugin is executed on a multi module project, the plugin will merge all submodules into the parent project on the server. the parent project is determined from the build.sbt. However it is possible to set the artifact_id of the parent project explicitly!")
     val nameStrategy = settingKey[String]("If a new project is created the plugin will take the name attribute from the build.sbt as the name of the project at VersionEye. Possible values: name, GA, artifact_id")
     val trackPlugins = settingKey[Boolean]("By default the plugins who are defined in the build.sbt file are handled like regular dependencies with the \"plugin\" scope. Plugins can be ignored by setting this property to \"false\".")
+    val filterScalaLangDependencies = settingKey[Boolean]("By default the scala-library dependency is not tracked. The scala-library dependency can be enabled for tracking by setting this property to \"false\".")
     val licenseCheckBreakByUnknown = settingKey[Boolean]("If this is true then the goal \"versioneye:licenseCheck\" will break the build if there is a component without any license.")
     val skipScopes = settingKey[String]("Comma separated list of scopes which should be ignored by this plugin.")
 
@@ -58,6 +59,7 @@ object VersionEyePlugin extends sbt.AutoPlugin {
       existingProjectId := "",
       parentArtifactId := "",
       updatePropertiesAfterCreate := true,
+      filterScalaLangDependencies := true,
       mergeAfterCreate := true,
       nameStrategy := "name",
       trackPlugins := true,
@@ -107,7 +109,7 @@ object VersionEyePlugin extends sbt.AutoPlugin {
     val log = streams.value.log
 
     val scopes: List[String] = getScopes(skipScopes.value)
-    val dependencies = dependencyArray(scopes, libraryDependencies.value)
+    val dependencies = dependencyArray(scopes, libraryDependencies.value, filterScalaLangDependencies.value)
     val pom = Map("name" -> getName(name.value, organization.value, description.value, nameStrategy.value),
       "group_id" -> organization.value, "artifact_id" -> name.value,
       "language" -> "Scala", "prod_type" -> "Sbt", "dependencies" -> dependencies)
@@ -139,7 +141,7 @@ object VersionEyePlugin extends sbt.AutoPlugin {
     log.info(".")
 
     val scopes: List[String] = getScopes(skipScopes.value)
-    val dependencies = dependencyArray(scopes, libraryDependencies.value)
+    val dependencies = dependencyArray(scopes, libraryDependencies.value, filterScalaLangDependencies.value)
     val pom = Map("name" -> getName(name.value, organization.value, description.value, nameStrategy.value),
       "group_id" -> organization.value, "artifact_id" -> name.value,
       "language" -> "Scala", "prod_type" -> "Sbt", "dependencies" -> dependencies)
@@ -184,7 +186,7 @@ object VersionEyePlugin extends sbt.AutoPlugin {
     log.info(".")
 
     val scopes: List[String] = getScopes(skipScopes.value)
-    val dependencies = dependencyArray(scopes, libraryDependencies.value)
+    val dependencies = dependencyArray(scopes, libraryDependencies.value, filterScalaLangDependencies.value)
     val pom = Map("name" -> getName(name.value, organization.value, description.value, nameStrategy.value),
       "group_id" -> organization.value, "artifact_id" -> name.value,
       "language" -> "Scala", "prod_type" -> "Sbt", "dependencies" -> dependencies)
@@ -221,7 +223,7 @@ object VersionEyePlugin extends sbt.AutoPlugin {
     log.info(".")
 
     val scopes: List[String] = getScopes(skipScopes.value)
-    val dependencies = dependencyArray(scopes, libraryDependencies.value)
+    val dependencies = dependencyArray(scopes, libraryDependencies.value, filterScalaLangDependencies.value)
     val pom = Map("name" -> getName(name.value, organization.value, description.value, nameStrategy.value),
       "group_id" -> organization.value, "artifact_id" -> name.value,
       "language" -> "Scala", "prod_type" -> "Sbt", "dependencies" -> dependencies)
@@ -413,16 +415,28 @@ object VersionEyePlugin extends sbt.AutoPlugin {
     bytes
   }
 
-  def dependencyArray(scopes: List[String], modules: Seq[ModuleID]): ListBuffer[Map[String, String]] = {
+  def isExcluded(module: ModuleID, filterScalaLangDependencies: Boolean): Boolean = {
+
+    if (!filterScalaLangDependencies) {
+      return false
+    }
+
+    if ("org.scala-lang" == module.organization && module.name.startsWith("scala-library")) {
+      return true
+    }
+
+    return false
+  }
+
+  def dependencyArray(scopes: List[String], modules: Seq[ModuleID], filterScalaLangDependencies: Boolean): ListBuffer[Map[String, String]] = {
     val result = ListBuffer[Map[String, String]]()
     modules.foreach(module => {
       val scope = toJsonScope(module.configurations)
-      if (scopes.contains(scope)) {
+      if (scopes.contains(scope) && !isExcluded(module, filterScalaLangDependencies)) {
         val map = Map("name" -> (module.organization + ":" + module.name), "version" -> module.revision, "scope" -> scope)
         result += map
       }
     }
-
     )
 
     return result
