@@ -1,13 +1,13 @@
 # VersionEye SBT Plugin
 
-This is the VersionEye SBT Plugin for scala projects. This project is under construction. 
+This is the VersionEye SBT Plugin for scala projects. This project is under construction.
 
 # Usage
 
 Add to your `project/plugins.sbt` the plugin:
 
 ```
-addSbtPlugin("com.versioneye" % "sbt-versioneye-plugin" % "0.1-SNAPSHOT")
+addSbtPlugin("com.versioneye" % "sbt-versioneye-plugin" % "0.1.0")
 ```
 
 Enable it within your `build.sbt`
@@ -45,7 +45,7 @@ Creates a `pom.json` file in the `target` dir (usually `target/pom.json`).
 
 `sbt versioneye:json`
 
-# Configuration 
+# Configuration
 
 ## API Key
 
@@ -107,6 +107,6 @@ project_id=55db6cf87a7c24000c03943d
 | filterScalaLangDependencies   | By default the scala-library dependency is not tracked. The scala-library dependency can be enabled for tracking by setting this property to `false`. |
 
 
- 
+
 
 

@@ -1,14 +1,10 @@
 sbtPlugin := true
 organization := "com.versioneye"
 name := "sbt-versioneye-plugin"
-version := "0.1-SNAPSHOT"
+version := "0.1.0"
 organizationHomepage := Some(new URL("https://www.versioneye.com"))
 description := "This is the sbt plugin for https://www.VersionEye.com. It allows you to create and update a project at VersionEye. You can find a complete documentation of this project on GitHub: https://github.com/versioneye/versioneye_sbt_plugin."
 startYear := Some(2015)
-homepage := Some(url("https://github.com/versioneye/versioneye_sbt_plugin"))
-
-licenses <<= version(v => Seq("MIT" -> url(
-  "http://choosealicense.com/licenses/mit/" format v)))
 
 scalaVersion := "2.10.2"
 
@@ -33,10 +29,12 @@ resolvers ++= Seq(
 )
 
 publishTo <<= version { (v: String) =>
-  Some(Resolver.file("file",  new File(Path.userHome.absolutePath+"/.m2/repository")))
-  /*val nexus = "https://oss.sonatype.org/"
-  if (v.trim.endsWith("SNAPSHOT")) Some("snapshots" at nexus + "content/repositories/snapshots")
-  else Some("releases" at nexus + "service/local/staging/deploy/maven2")*/
+  // Some(Resolver.file("file",  new File(Path.userHome.absolutePath+"/.m2/repository")))
+  val nexus = "https://oss.sonatype.org/"
+  if (v.trim.endsWith("SNAPSHOT"))
+    Some("snapshots" at nexus + "content/repositories/snapshots")
+  else
+    Some("releases" at nexus + "service/local/staging/deploy/maven2")
 }
 
 pomExtra := (
