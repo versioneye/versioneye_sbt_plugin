@@ -44,6 +44,7 @@ object VersionEyePlugin extends sbt.AutoPlugin {
     val filterScalaLangDependencies = settingKey[Boolean]("By default the scala-library dependency is not tracked. The scala-library dependency can be enabled for tracking by setting this property to \"false\".")
     val licenseCheckBreakByUnknown = settingKey[Boolean]("If this is true then the goal \"versioneye:licenseCheck\" will break the build if there is a component without any license.")
     val skipScopes = settingKey[String]("Comma separated list of scopes which should be ignored by this plugin.")
+    val publishCrossVersion = settingKey[Boolean]("Use scala cross version when publishing this artifact")
 
     // default values for the tasks and settings
     lazy val versionEyeSettings: Seq[Def.Setting[_]] = Seq(
@@ -64,7 +65,8 @@ object VersionEyePlugin extends sbt.AutoPlugin {
       nameStrategy := "name",
       trackPlugins := true,
       licenseCheckBreakByUnknown := false,
-      skipScopes := ""
+      skipScopes := "",
+      publishCrossVersion := false
     )
   }
 
@@ -88,7 +90,6 @@ object VersionEyePlugin extends sbt.AutoPlugin {
    * Resolve the name. Possible strategies: name (default), artifactId, GA
    */
   def getName(name: String, organization: String, description: String, nameStrategy: String): String = {
-
     var result = description
 
     if (result == null || result.isEmpty || nameStrategy == "artifact_id") {
@@ -102,6 +103,15 @@ object VersionEyePlugin extends sbt.AutoPlugin {
 
   }
 
+  def getArtifactId(name: String, publishCrossVersion: Boolean, ivyScala: Option[IvyScala]): String = {
+
+    if (publishCrossVersion) {
+      val is:IvyScala = ivyScala.get
+      return CrossVersion(CrossVersion.binary, is.scalaFullVersion, is.scalaBinaryVersion).map(f => f(name)).getOrElse(name)
+    }
+    return name
+  }
+
   /**
    * Create a JSON file containing the dependencies.
    */
@@ -109,9 +119,9 @@ object VersionEyePlugin extends sbt.AutoPlugin {
     val log = streams.value.log
 
     val scopes: List[String] = getScopes(skipScopes.value)
-    val dependencies = dependencyArray(scopes, libraryDependencies.value, filterScalaLangDependencies.value)
+    val dependencies = dependencyArray(scopes, libraryDependencies.value, filterScalaLangDependencies.value, ivyScala.value)
     val pom = Map("name" -> getName(name.value, organization.value, description.value, nameStrategy.value),
-      "group_id" -> organization.value, "artifact_id" -> name.value,
+      "group_id" -> organization.value, "artifact_id" -> getArtifactId(name.value, publishCrossVersion.value, ivyScala.value),
       "language" -> "Scala", "prod_type" -> "Sbt", "dependencies" -> dependencies)
 
     if (dependencies.isEmpty) {
@@ -141,9 +151,9 @@ object VersionEyePlugin extends sbt.AutoPlugin {
     log.info(".")
 
     val scopes: List[String] = getScopes(skipScopes.value)
-    val dependencies = dependencyArray(scopes, libraryDependencies.value, filterScalaLangDependencies.value)
+    val dependencies = dependencyArray(scopes, libraryDependencies.value, filterScalaLangDependencies.value, ivyScala.value)
     val pom = Map("name" -> getName(name.value, organization.value, description.value, nameStrategy.value),
-      "group_id" -> organization.value, "artifact_id" -> name.value,
+      "group_id" -> organization.value, "artifact_id" -> getArtifactId(name.value, publishCrossVersion.value, ivyScala.value),
       "language" -> "Scala", "prod_type" -> "Sbt", "dependencies" -> dependencies)
 
     if (dependencies.isEmpty) {
@@ -186,9 +196,9 @@ object VersionEyePlugin extends sbt.AutoPlugin {
     log.info(".")
 
     val scopes: List[String] = getScopes(skipScopes.value)
-    val dependencies = dependencyArray(scopes, libraryDependencies.value, filterScalaLangDependencies.value)
+    val dependencies = dependencyArray(scopes, libraryDependencies.value, filterScalaLangDependencies.value, ivyScala.value)
     val pom = Map("name" -> getName(name.value, organization.value, description.value, nameStrategy.value),
-      "group_id" -> organization.value, "artifact_id" -> name.value,
+      "group_id" -> organization.value, "artifact_id" -> getArtifactId(name.value, publishCrossVersion.value, ivyScala.value),
       "language" -> "Scala", "prod_type" -> "Sbt", "dependencies" -> dependencies)
 
     if (dependencies.isEmpty) {
@@ -223,9 +233,9 @@ object VersionEyePlugin extends sbt.AutoPlugin {
     log.info(".")
 
     val scopes: List[String] = getScopes(skipScopes.value)
-    val dependencies = dependencyArray(scopes, libraryDependencies.value, filterScalaLangDependencies.value)
+    val dependencies = dependencyArray(scopes, libraryDependencies.value, filterScalaLangDependencies.value, ivyScala.value)
     val pom = Map("name" -> getName(name.value, organization.value, description.value, nameStrategy.value),
-      "group_id" -> organization.value, "artifact_id" -> name.value,
+      "group_id" -> organization.value, "artifact_id" -> getArtifactId(name.value, publishCrossVersion.value, ivyScala.value),
       "language" -> "Scala", "prod_type" -> "Sbt", "dependencies" -> dependencies)
 
     if (dependencies.isEmpty) {
@@ -371,7 +381,7 @@ object VersionEyePlugin extends sbt.AutoPlugin {
 
       }
       else {
-        throw new IllegalStateException("apiKey is not specified and versioneye.properties not found")
+        throw new IllegalStateException("api_key is not specified and versioneye.properties not found")
       }
     }
 
@@ -428,12 +438,16 @@ object VersionEyePlugin extends sbt.AutoPlugin {
     return false
   }
 
-  def dependencyArray(scopes: List[String], modules: Seq[ModuleID], filterScalaLangDependencies: Boolean): ListBuffer[Map[String, String]] = {
+  def dependencyArray(scopes: List[String], modules: Seq[ModuleID], filterScalaLangDependencies: Boolean, ivyScala: Option[IvyScala]): ListBuffer[Map[String, String]] = {
     val result = ListBuffer[Map[String, String]]()
     modules.foreach(module => {
       val scope = toJsonScope(module.configurations)
-      if (scopes.contains(scope) && !isExcluded(module, filterScalaLangDependencies)) {
-        val map = Map("name" -> (module.organization + ":" + module.name), "version" -> module.revision, "scope" -> scope)
+
+      val crossArtifactName: String = CrossVersion.apply(module, ivyScala).map(f => f(module.name)).getOrElse(module.name)
+
+      if (scopes.contains(scope)) {
+        var name = module.organization + ":" + crossArtifactName
+        val map = Map("name" -> name, "version" -> module.revision, "scope" -> scope)
         result += map
       }
     }
