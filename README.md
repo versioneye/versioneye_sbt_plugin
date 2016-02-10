@@ -10,6 +10,12 @@ Add to your `project/plugins.sbt` the plugin:
 addSbtPlugin("com.versioneye" % "sbt-versioneye-plugin" % "0.1.1")
 ```
 
+Compile it: 
+
+```
+sbt compile
+```
+
 Enable it within your `build.sbt`
 
 ```
