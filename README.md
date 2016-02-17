@@ -55,13 +55,14 @@ Creates a `pom.json` file in the `target` dir (usually `target/pom.json`).
 
 ## API Key
 
-This plugin can obtain the API key from any of the following property files (in this precedence):
+This plugin can obtain the API key from any of the following property sources (in this precedence):
 
-1. Configured property file in the SBT build (`apiKey in versioneye := "myApiKey"`)
-2. Configured property file in the SBT build (`propertyPath in versioneye := "myfile.properties"`)
-3. `src/qa/resources/versioneye.properties`
-4. `src/main/resources/versioneye.properties`
-5. `${HOME}/.m2/versioneye.properties`
+1. Set `VERSIONEYE_API_KEY=myApiKey` environment variable or the `versioneye.api.key=myApiKey` system property.
+2. Configured property file in the SBT build (`apiKey in versioneye := "myApiKey"`)
+3. Configured property file in the SBT build (`propertyPath in versioneye := "myfile.properties"`)
+4. `src/qa/resources/versioneye.properties`
+5. `src/main/resources/versioneye.properties`
+6. `${HOME}/.m2/versioneye.properties`
 
 Properties example:
 

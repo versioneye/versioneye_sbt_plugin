@@ -18,6 +18,9 @@ import scalaj.http._
  */
 object VersionEyePlugin extends sbt.AutoPlugin {
 
+  val VERSIONEYE_API_KEY_ENV = "VERSIONEYE_API_KEY"
+  val VERSIONEYE_API_KEY_PROPERTY = "versioneye.api.key"
+
   object autoImport {
 
     val versioneye = config("versioneye").hide
@@ -159,7 +162,6 @@ object VersionEyePlugin extends sbt.AutoPlugin {
     if (dependencies.isEmpty) {
       streams.value.log.info("There are no dependencies in this project !" + organization.value + " / " + name.value)
     }
-
 
     val apiKeyValue = getApiKey(apiKey.value, propertiesPath.value, baseDirectory.value)
     val url = getUrl(baseUrl.value, apiPath.value, "/projects?api_key=" + apiKeyValue)
@@ -367,6 +369,24 @@ object VersionEyePlugin extends sbt.AutoPlugin {
    * Load the API key from project key or a properties file (Home/.m2/, src/qa/resources, src/main/resources)
    */
   def getApiKey(apiKey: String, propertiesFile: String, baseDirectory: File): String = {
+
+    val envApiKey = sys.env.get(VERSIONEYE_API_KEY_ENV)
+    val propertiesApiKey = sys.props.get(VERSIONEYE_API_KEY_PROPERTY)
+
+    if(envApiKey.isDefined && propertiesApiKey.isDefined) {
+      if(!envApiKey.get.equals(propertiesApiKey.get))
+        throw new IllegalStateException("The API key is defined in the environment variable " +
+          VERSIONEYE_API_KEY_ENV + " and in the system property " + VERSIONEYE_API_KEY_PROPERTY +
+          " with a different setting.")
+    }
+
+    if(envApiKey.isDefined){
+      return envApiKey.get
+    }
+
+    if(propertiesApiKey.isDefined){
+      return propertiesApiKey.get
+    }
 
     if (!apiKey.isEmpty) {
       return apiKey
