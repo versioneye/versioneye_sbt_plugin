@@ -150,7 +150,7 @@ object VersionEyePlugin extends sbt.AutoPlugin {
     val log = streams.value.log
 
     log.info(".")
-    log.info("Starting to upload dependencies. This can take a couple seconds ... ")
+    log.info("Starting to upload dependencies to " + baseUrl.value + ". This can take a couple seconds ... ")
     log.info(".")
 
     val scopes: List[String] = getScopes(skipScopes.value)
@@ -181,7 +181,7 @@ object VersionEyePlugin extends sbt.AutoPlugin {
     }
 
     if (updatePropertiesAfterCreate.value) {
-      writeProperties(projectResponse, getPropertiesFile(propertiesPath.value, baseDirectory.value, false))
+      writeProperties(projectResponse, getPropertiesFile(propertiesPath.value, baseDirectory.value, false), baseUrl.value)
     }
     prettyPrint(log, baseUrl.value, projectResponse)
   }
@@ -194,7 +194,7 @@ object VersionEyePlugin extends sbt.AutoPlugin {
     val log = streams.value.log
 
     log.info(".")
-    log.info("Starting to upload dependencies. This can take a couple seconds ... ")
+    log.info("Starting to upload dependencies to " + baseUrl.value + ". This can take a couple seconds ... ")
     log.info(".")
 
     val scopes: List[String] = getScopes(skipScopes.value)
@@ -231,7 +231,7 @@ object VersionEyePlugin extends sbt.AutoPlugin {
     val log = streams.value.log
 
     log.info(".")
-    log.info("Starting to upload dependencies for license check. This can take a couple seconds ... ")
+    log.info("Starting to upload dependencies to " + baseUrl.value + " for license check. This can take a couple seconds ... ")
     log.info(".")
 
     val scopes: List[String] = getScopes(skipScopes.value)
@@ -243,7 +243,6 @@ object VersionEyePlugin extends sbt.AutoPlugin {
     if (dependencies.isEmpty) {
       streams.value.log.info("There are no dependencies in this project !" + organization.value + " / " + name.value)
     }
-
 
     val apiKeyValue = getApiKey(apiKey.value, propertiesPath.value, baseDirectory.value)
     val projectIdValue = getVersionEyeProjectId(existingProjectId.value, propertiesPath.value, baseDirectory.value)
@@ -260,11 +259,13 @@ object VersionEyePlugin extends sbt.AutoPlugin {
     val projectResponse = getResponse(response)
 
     if (projectResponse.getLicenses_red > 0) {
-      throw new IllegalStateException("Some components violate the license whitelist! " + "More details here: " + baseUrl.value + "/user/projects/" + projectResponse.getId)
+      throw new IllegalStateException("Some components violate the license whitelist! " +
+        "More details here: " + baseUrl.value + "/user/projects/" + projectResponse.getId)
     }
 
     if (projectResponse.getLicenses_unknown > 0 && licenseCheckBreakByUnknown.value) {
-      throw new IllegalStateException("Some components are without any license! " + "More details here: " + baseUrl.value + "/user/projects/" + projectResponse.getId)
+      throw new IllegalStateException("Some components are without any license! " +
+        "More details here: " + baseUrl.value + "/user/projects/" + projectResponse.getId)
     }
 
     prettyPrint(log, baseUrl.value, projectResponse)
@@ -288,7 +289,7 @@ object VersionEyePlugin extends sbt.AutoPlugin {
   def handleResponseErrorIfAny(response: HttpResponse[String]): Unit = {
     if (!response.is2xx) {
       val err = getErrorMessage(response);
-      val errMsg: String = "Status Code: " + response.statusLine + " -> " + err
+      val errMsg = err.map( msg => "Status Code: " + response.statusLine + " -> " + msg).getOrElse("Status Code: " + response.statusLine);
       throw new scala.RuntimeException(errMsg)
     }
   }
@@ -316,7 +317,6 @@ object VersionEyePlugin extends sbt.AutoPlugin {
 
   def getResponse(response: HttpResponse[String]): ProjectJsonResponse = {
     val body = response.body
-
     val mapper = new ObjectMapper() with ScalaObjectMapper
     mapper.registerModule(DefaultScalaModule)
     return mapper.readValue[ProjectJsonResponse](body)
@@ -326,17 +326,24 @@ object VersionEyePlugin extends sbt.AutoPlugin {
    * Get error message from a HTTP Response (JSON or raw body)
    * @param response
    */
-  def getErrorMessage(response: HttpResponse[String]): String = {
+  def getErrorMessage(response: HttpResponse[String]): Option[String] = {
     val body = response.body
+
+    // application/json
+    if (response.contentType.isEmpty
+        || !"application/json".equals(response.contentType.get)
+        || response.body.isEmpty) {
+      return None;
+    }
 
     val mapper = new ObjectMapper() with ScalaObjectMapper
     mapper.registerModule(DefaultScalaModule)
     val responseMap = mapper.readValue[Map[String, String]](body)
     if (responseMap.contains("error")) {
-      return responseMap.get("error").get
+      return responseMap.get("error")
     }
 
-    return body
+    return None
   }
 
   def getUrl(values: String*): String = {

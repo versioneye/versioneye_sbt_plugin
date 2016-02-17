@@ -12,7 +12,7 @@ object PropertiesUtil {
 
   protected val propertiesFile: String = "versioneye.properties"
 
-  def writeProperties(response: ProjectJsonResponse, propertiesFile: File): Unit = {
+  def writeProperties(response: ProjectJsonResponse, propertiesFile: File, baseUrl: String): Unit = {
     var properties: Properties = null
 
     if (!propertiesFile.exists()) {
@@ -23,13 +23,12 @@ object PropertiesUtil {
       properties = loadProperties(propertiesFile)
     }
 
-
     if (response.getId != null) {
       properties.setProperty("project_id", response.getId)
     }
 
     val fos = new FileOutputStream(propertiesFile)
-    properties.store(fos, " Properties for https://www.VersionEye.com")
+    properties.store(fos, s" Properties for $baseUrl")
     fos.close()
   }
 

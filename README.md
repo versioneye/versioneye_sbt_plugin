@@ -16,10 +16,18 @@ Compile it:
 sbt compile
 ```
 
-Enable it within your `build.sbt`
+Enable it within your `build.sbt` and optionally set properties:
 
 ```
 enablePlugins(VersionEyePlugin)
+
+// VersionEyePlugin.projectSettings
+propertiesPath in versioneye := "/Users/mark/playground/sbt-test/src/qa/resources/versioneye.properties"
+apiKey in versioneye := "myApiKey"
+baseUrl in versioneye := "https://www.versioneye.com"
+apiPath in versioneye := "/api/v2"
+publishCrossVersion in versioneye := true
+
 ```
 
 ## Create a VersionEye project
