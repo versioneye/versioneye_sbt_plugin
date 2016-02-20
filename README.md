@@ -7,10 +7,10 @@ This is the VersionEye SBT Plugin for scala projects. This project is under cons
 Add to your `project/plugins.sbt` the plugin:
 
 ```
-addSbtPlugin("com.versioneye" % "sbt-versioneye-plugin" % "0.1.1")
+addSbtPlugin("com.versioneye" % "sbt-versioneye-plugin" % "0.2.0")
 ```
 
-Compile it: 
+Compile it:
 
 ```
 sbt compile
