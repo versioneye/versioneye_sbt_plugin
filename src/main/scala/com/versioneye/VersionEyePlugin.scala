@@ -32,7 +32,7 @@ object VersionEyePlugin extends sbt.AutoPlugin {
     val apiKey = settingKey[String]("Your secret API Key for the VersionEye API. Get it here: https://www.versioneye.com/settings/api")
     val baseUrl = settingKey[String]("Set the base URL for the VersionEye API. Only needed for VersionEye Enterprise!")
     val apiPath = settingKey[String]("apiPath")
-    val existingProjectId = settingKey[String]("existingProjectId")
+    val existingProjectId = settingKey[String]("VersionEye project id")
     val propertiesPath = settingKey[String]("propertiesPath")
     val proxyHost = settingKey[String]("Set your proxy host name or IP")
     val proxyPort = settingKey[Int]("Set your proxy port here")
