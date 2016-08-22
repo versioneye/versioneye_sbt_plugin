@@ -23,6 +23,7 @@ enablePlugins(VersionEyePlugin)
 
 // VersionEyePlugin.projectSettings
 propertiesPath in versioneye := "/Users/mark/playground/sbt-test/src/qa/resources/versioneye.properties"
+existingProjectId in versioneye := "1234567890abcdef"
 apiKey in versioneye := "myApiKey"
 baseUrl in versioneye := "https://www.versioneye.com"
 apiPath in versioneye := "/api/v2"
@@ -84,7 +85,7 @@ api_key=myApiKey
 
 This plugin can obtain the VersionEye project id from any of the following property files (in this precedence):
 
-1. Configured project id in the SBT build (`projectId in versioneye := "55db6cf87a7c24000c03943d"`)
+1. Configured project id in the SBT build (`existingProjectId in versioneye := "55db6cf87a7c24000c03943d"`)
 2. Configured property file in the SBT build (`propertyPath in versioneye := "myfile.properties"`)
 3. `src/qa/resources/versioneye.properties`
 4. `src/main/resources/versioneye.properties`
@@ -107,6 +108,7 @@ project_id=55db6cf87a7c24000c03943d
 | apiKey                        | Your secret API Key for the VersionEye API. Get it here: https://www.versioneye.com/settings/api|
 | apiPath                       | apiPath|
 | baseUrl                       | Set the base URL for the VersionEye API. Only needed for VersionEye Enterprise!|
+| existingProjectId             | The VersionEye project id|
 | licenseCheckBreakByUnknown    | If this is true then the goal "versioneye:licenseCheck" will break the build if there is a component without any license.|
 | mergeAfterCreate              | If the plugin is executed on a multi module project, the plugin will merge all submodules into the parent project by default. If this behaviour is not desired it can be switched off with this configuration option!|
 | nameStrategy                  | If a new project is created the plugin will take the name attribute from the build.sbt as the name of the project at VersionEye. Possible values: name, GA, artifact_id|
