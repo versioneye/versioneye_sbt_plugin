@@ -176,9 +176,7 @@ object VersionEyePlugin extends sbt.AutoPlugin {
 
     val projectResponse = getResponse(response)
 
-    if (mergeAfterCreate.value) {
-      mergeWithParent((organization.value, name.value), (parentGroupId.value, parentArtifactId.value), baseUrl.value, apiPath.value, apiKeyValue, projectResponse.getId, proxyConfig)
-    }
+    mergeWithParent((organization.value, name.value), (parentGroupId.value, parentArtifactId.value), baseUrl.value, apiPath.value, apiKeyValue, projectResponse.getId, proxyConfig)
 
     if (updatePropertiesAfterCreate.value) {
       writeProperties(projectResponse, getPropertiesFile(propertiesPath.value, baseDirectory.value, false), baseUrl.value)
@@ -220,6 +218,8 @@ object VersionEyePlugin extends sbt.AutoPlugin {
     handleResponseErrorIfAny(response)
 
     val projectResponse = getResponse(response)
+
+    mergeWithParent((organization.value, name.value), (parentGroupId.value, parentArtifactId.value), baseUrl.value, apiPath.value, apiKeyValue, projectResponse.getId, proxyConfig)
 
     prettyPrint(log, baseUrl.value, projectResponse)
   }
@@ -268,6 +268,8 @@ object VersionEyePlugin extends sbt.AutoPlugin {
         "More details here: " + baseUrl.value + "/user/projects/" + projectResponse.getId)
     }
 
+    mergeWithParent((organization.value, name.value), (parentGroupId.value, parentArtifactId.value), baseUrl.value, apiPath.value, apiKeyValue, projectResponse.getId, proxyConfig)
+
     prettyPrint(log, baseUrl.value, projectResponse)
     log.info("Everything is is fine.")
   }
@@ -298,8 +300,13 @@ object VersionEyePlugin extends sbt.AutoPlugin {
    * Invoke a metadata merge with the parent artifacts.
    */
   def mergeWithParent(projectGA: (String, String), parentGA: (String, String), baseUrl: String, apiPath: String, apiKey: String, requestId: String, proxyConfig: ProxyConfig): Unit = {
+
+    if (!mergeAfterCreate.value) {
+      return
+    }
+
     if (parentGA._1 == null || parentGA._1.isEmpty || parentGA._2 == null || parentGA._2.isEmpty) {
-      return;
+      return
     }
 
     if ((projectGA._1 == parentGA._1) && (projectGA._1 == parentGA._2)) {
