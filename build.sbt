@@ -6,9 +6,9 @@ organizationHomepage := Some(new URL("https://www.versioneye.com"))
 description := "This is the sbt plugin for https://www.VersionEye.com. It allows you to create and update a project at VersionEye. You can find a complete documentation of this project on GitHub: https://github.com/versioneye/versioneye_sbt_plugin."
 startYear := Some(2015)
 
-scalaVersion := "2.12.3"
+scalaVersion := "2.12.4"
 
-crossSbtVersions := Vector("0.13.16", "1.0.2")
+crossSbtVersions := Vector("0.13.16", "1.0.4")
 
 
 libraryDependencies ++= Seq("com.fasterxml.jackson.module" %%  "jackson-module-scala" % "2.9.1",
