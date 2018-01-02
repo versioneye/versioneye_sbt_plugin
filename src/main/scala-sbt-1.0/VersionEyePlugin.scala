@@ -14,8 +14,8 @@ import scala.collection.mutable.ListBuffer
 import scalaj.http._
 
 /**
- * @author <a href="mailto:mpaluch@paluch.biz">Mark Paluch</a>
- */
+  * @author <a href="mailto:mpaluch@paluch.biz">Mark Paluch</a>
+  */
 object VersionEyePlugin extends sbt.AutoPlugin {
 
   val VERSIONEYE_API_KEY_ENV = "VERSIONEYE_API_KEY"
@@ -23,7 +23,7 @@ object VersionEyePlugin extends sbt.AutoPlugin {
 
   object autoImport {
 
-    val versioneye = config("versioneye").hide
+    val Versioneye = config("versioneye").hide
     lazy val createProject = taskKey[Unit]("Create a new project at VersionEye")
     lazy val updateProject = taskKey[Unit]("Updates an existing project at VersionEye with the dependencies from the current project")
     lazy val licenseCheck = taskKey[Unit](" Updates an existing project at VersionEye with the dependencies from the current project AND  ensures that all used licenses are on a whitelist. If that is not the case it breaks the build.")
@@ -75,23 +75,23 @@ object VersionEyePlugin extends sbt.AutoPlugin {
 
   import autoImport._
 
-  override val projectConfigurations = Seq(versioneye)
+  override val projectConfigurations = Seq(Versioneye)
 
   override lazy val projectSettings =
     versionEyeSettings ++
-      inConfig(versioneye)(Seq(
+      inConfig(Versioneye)(Seq(
         json := jsonTask.value,
         createProject := createTask.value,
         updateProject := updateTask.value,
         licenseCheck := licenseCheckTask.value
       )
       ) ++
-      inConfig(versioneye)(Seq())
+      inConfig(Versioneye)(Seq())
 
 
   /**
-   * Resolve the name. Possible strategies: name (default), artifactId, GA
-   */
+    * Resolve the name. Possible strategies: name (default), artifactId, GA
+    */
   def getName(name: String, organization: String, description: String, nameStrategy: String): String = {
     var result = description
 
@@ -116,79 +116,39 @@ object VersionEyePlugin extends sbt.AutoPlugin {
   }
 
   /**
-   * Create a JSON file containing the dependencies.
-   */
-  private def jsonTask = Def.task {
+    * Create a JSON file containing the dependencies.
+    */
+  private def jsonTask = Def.taskDyn {
     val log = streams.value.log
 
     val scopes: List[String] = getScopes(skipScopes.value)
-    val dependencies = dependencyArray(scopes, libraryDependencies.value, filterScalaLangDependencies.value, ivyScala.value)
+    val dependencies = dependencyArray(scopes, libraryDependencies.value, filterScalaLangDependencies.value, scalaModuleInfo.value)
     val pom = Map("name" -> getName(name.value, organization.value, description.value, nameStrategy.value),
-      "group_id" -> organization.value, "artifact_id" -> getArtifactId(name.value, publishCrossVersion.value, ivyScala.value),
+      "group_id" -> organization.value, "artifact_id" -> getArtifactId(name.value, publishCrossVersion.value, scalaModuleInfo.value),
       "language" -> "Scala", "prod_type" -> "Sbt", "dependencies" -> dependencies)
 
     if (dependencies.isEmpty) {
       streams.value.log.info("There are no dependencies in this project !" + organization.value + " / " + name.value)
     }
 
-    val bytes: Array[Byte] = toJsonBytes(pom)
+    Def.task {
+      val bytes: Array[Byte] = toJsonBytes(pom)
 
-    val file = target.value / "pom.json"
+      val file = target.value / "pom.json"
 
-    IO.write(file, bytes)
+      IO.write(file, bytes)
 
-    log.info(".")
-    log.info("You find your json file here: " + file)
-    log.info(".")
+      log.info(".")
+      log.info("You find your json file here: " + file)
+      log.info(".")
+    }
   }
 
 
   /**
-   * Create a VersionEye project.
-   */
-  private def createTask = Def.task {
-    val log = streams.value.log
-
-    log.info(".")
-    log.info("Starting to upload dependencies to " + baseUrl.value + ". This can take a couple seconds ... ")
-    log.info(".")
-
-    val scopes: List[String] = getScopes(skipScopes.value)
-    val dependencies = dependencyArray(scopes, libraryDependencies.value, filterScalaLangDependencies.value, ivyScala.value)
-    val pom = Map("name" -> getName(name.value, organization.value, description.value, nameStrategy.value),
-      "group_id" -> organization.value, "artifact_id" -> getArtifactId(name.value, publishCrossVersion.value, ivyScala.value),
-      "language" -> "Scala", "prod_type" -> "Sbt", "dependencies" -> dependencies)
-
-    if (dependencies.isEmpty) {
-      streams.value.log.info("There are no dependencies in this project !" + organization.value + " / " + name.value)
-    }
-
-    val apiKeyValue = getApiKey(apiKey.value, propertiesPath.value, baseDirectory.value)
-    val url = getUrl(baseUrl.value, apiPath.value, "/projects?api_key=" + apiKeyValue)
-    val bytes = toJsonBytes(pom)
-
-    val proxyConfig = ProxyConfig(proxyHost.value, proxyPort.value, proxyUser.value, proxyPassword.value)
-
-    val request = getHttpRequest(url, proxyConfig).postMulti(MultiPart("upload", "pom.json", "application/json", bytes))
-    val response = request.asString
-
-    handleResponseErrorIfAny(response)
-
-    val projectResponse = getResponse(response)
-
-    mergeWithParent((organization.value, name.value), (parentGroupId.value, parentArtifactId.value), baseUrl.value, apiPath.value, apiKeyValue, projectResponse.getId, proxyConfig)
-
-    if (updatePropertiesAfterCreate.value) {
-      writeProperties(projectResponse, getPropertiesFile(propertiesPath.value, baseDirectory.value, false), baseUrl.value)
-    }
-    prettyPrint(log, baseUrl.value, projectResponse)
-  }
-
-
-  /**
-   * Update a VersionEye project.
-   */
-  private def updateTask = Def.task {
+    * Create a VersionEye project.
+    */
+  private def createTask = Def.taskDyn {
     val log = streams.value.log
 
     log.info(".")
@@ -196,38 +156,84 @@ object VersionEyePlugin extends sbt.AutoPlugin {
     log.info(".")
 
     val scopes: List[String] = getScopes(skipScopes.value)
-    val dependencies = dependencyArray(scopes, libraryDependencies.value, filterScalaLangDependencies.value, ivyScala.value)
+    val dependencies = dependencyArray(scopes, libraryDependencies.value, filterScalaLangDependencies.value, scalaModuleInfo.value)
     val pom = Map("name" -> getName(name.value, organization.value, description.value, nameStrategy.value),
-      "group_id" -> organization.value, "artifact_id" -> getArtifactId(name.value, publishCrossVersion.value, ivyScala.value),
+      "group_id" -> organization.value, "artifact_id" -> getArtifactId(name.value, publishCrossVersion.value, scalaModuleInfo.value),
       "language" -> "Scala", "prod_type" -> "Sbt", "dependencies" -> dependencies)
 
     if (dependencies.isEmpty) {
       streams.value.log.info("There are no dependencies in this project !" + organization.value + " / " + name.value)
     }
 
-    val apiKeyValue = getApiKey(apiKey.value, propertiesPath.value, baseDirectory.value)
-    val projectIdValue = getVersionEyeProjectId(existingProjectId.value, propertiesPath.value, baseDirectory.value)
-    val url = getUrl(baseUrl.value, apiPath.value, "/projects/", projectIdValue, "?api_key=" + apiKeyValue)
-    val bytes = toJsonBytes(pom)
+    Def.task {
+      val apiKeyValue = getApiKey(apiKey.value, propertiesPath.value, baseDirectory.value)
+      val url = getUrl(baseUrl.value, apiPath.value, "/projects?api_key=" + apiKeyValue)
+      val bytes = toJsonBytes(pom)
 
-    val proxyConfig = ProxyConfig(proxyHost.value, proxyPort.value, proxyUser.value, proxyPassword.value)
+      val proxyConfig = ProxyConfig(proxyHost.value, proxyPort.value, proxyUser.value, proxyPassword.value)
 
-    val request = getHttpRequest(url, proxyConfig).postMulti(MultiPart("project_file", "pom.json", "application/json", bytes))
-    val response = request.asString
+      val request = getHttpRequest(url, proxyConfig).postMulti(MultiPart("upload", "pom.json", "application/json", bytes))
+      val response = request.asString
 
-    handleResponseErrorIfAny(response)
+      handleResponseErrorIfAny(response)
 
-    val projectResponse = getResponse(response)
+      val projectResponse = getResponse(response)
 
-    mergeWithParent((organization.value, name.value), (parentGroupId.value, parentArtifactId.value), baseUrl.value, apiPath.value, apiKeyValue, projectResponse.getId, proxyConfig)
+      mergeWithParent(mergeAfterCreate.value, (organization.value, name.value), (parentGroupId.value, parentArtifactId.value), baseUrl.value, apiPath.value, apiKeyValue, projectResponse.getId, proxyConfig)
 
-    prettyPrint(log, baseUrl.value, projectResponse)
+      if (updatePropertiesAfterCreate.value) {
+        writeProperties(projectResponse, getPropertiesFile(propertiesPath.value, baseDirectory.value, false), baseUrl.value)
+      }
+      prettyPrint(log, baseUrl.value, projectResponse)
+    }
+  }
+
+
+  /**
+    * Update a VersionEye project.
+    */
+  private def updateTask = Def.taskDyn {
+    val log = streams.value.log
+
+    log.info(".")
+    log.info("Starting to upload dependencies to " + baseUrl.value + ". This can take a couple seconds ... ")
+    log.info(".")
+
+    val scopes: List[String] = getScopes(skipScopes.value)
+    val dependencies = dependencyArray(scopes, libraryDependencies.value, filterScalaLangDependencies.value, scalaModuleInfo.value)
+    val pom = Map("name" -> getName(name.value, organization.value, description.value, nameStrategy.value),
+      "group_id" -> organization.value, "artifact_id" -> getArtifactId(name.value, publishCrossVersion.value, scalaModuleInfo.value),
+      "language" -> "Scala", "prod_type" -> "Sbt", "dependencies" -> dependencies)
+
+    if (dependencies.isEmpty) {
+      streams.value.log.info("There are no dependencies in this project !" + organization.value + " / " + name.value)
+    }
+
+    Def.task {
+      val apiKeyValue = getApiKey(apiKey.value, propertiesPath.value, baseDirectory.value)
+      val projectIdValue = getVersionEyeProjectId(existingProjectId.value, propertiesPath.value, baseDirectory.value)
+      val url = getUrl(baseUrl.value, apiPath.value, "/projects/", projectIdValue, "?api_key=" + apiKeyValue)
+      val bytes = toJsonBytes(pom)
+
+      val proxyConfig = ProxyConfig(proxyHost.value, proxyPort.value, proxyUser.value, proxyPassword.value)
+
+      val request = getHttpRequest(url, proxyConfig).postMulti(MultiPart("project_file", "pom.json", "application/json", bytes))
+      val response = request.asString
+
+      handleResponseErrorIfAny(response)
+
+      val projectResponse = getResponse(response)
+
+      mergeWithParent(mergeAfterCreate.value, (organization.value, name.value), (parentGroupId.value, parentArtifactId.value), baseUrl.value, apiPath.value, apiKeyValue, projectResponse.getId, proxyConfig)
+
+      prettyPrint(log, baseUrl.value, projectResponse)
+    }
   }
 
   /**
-   * Upload and check license whitelisting of a VersionEye project.
-   */
-  private def licenseCheckTask = Def.task {
+    * Upload and check license whitelisting of a VersionEye project.
+    */
+  private def licenseCheckTask = Def.taskDyn {
     val log = streams.value.log
 
     log.info(".")
@@ -235,43 +241,45 @@ object VersionEyePlugin extends sbt.AutoPlugin {
     log.info(".")
 
     val scopes: List[String] = getScopes(skipScopes.value)
-    val dependencies = dependencyArray(scopes, libraryDependencies.value, filterScalaLangDependencies.value, ivyScala.value)
+    val dependencies = dependencyArray(scopes, libraryDependencies.value, filterScalaLangDependencies.value, scalaModuleInfo.value)
     val pom = Map("name" -> getName(name.value, organization.value, description.value, nameStrategy.value),
-      "group_id" -> organization.value, "artifact_id" -> getArtifactId(name.value, publishCrossVersion.value, ivyScala.value),
+      "group_id" -> organization.value, "artifact_id" -> getArtifactId(name.value, publishCrossVersion.value, scalaModuleInfo.value),
       "language" -> "Scala", "prod_type" -> "Sbt", "dependencies" -> dependencies)
 
     if (dependencies.isEmpty) {
       streams.value.log.info("There are no dependencies in this project !" + organization.value + " / " + name.value)
     }
 
-    val apiKeyValue = getApiKey(apiKey.value, propertiesPath.value, baseDirectory.value)
-    val projectIdValue = getVersionEyeProjectId(existingProjectId.value, propertiesPath.value, baseDirectory.value)
-    val url = getUrl(baseUrl.value, apiPath.value, "/projects/", projectIdValue, "?api_key=" + apiKeyValue)
-    val bytes = toJsonBytes(pom)
+    Def.task {
+      val apiKeyValue = getApiKey(apiKey.value, propertiesPath.value, baseDirectory.value)
+      val projectIdValue = getVersionEyeProjectId(existingProjectId.value, propertiesPath.value, baseDirectory.value)
+      val url = getUrl(baseUrl.value, apiPath.value, "/projects/", projectIdValue, "?api_key=" + apiKeyValue)
+      val bytes = toJsonBytes(pom)
 
-    val proxyConfig = ProxyConfig(proxyHost.value, proxyPort.value, proxyUser.value, proxyPassword.value)
+      val proxyConfig = ProxyConfig(proxyHost.value, proxyPort.value, proxyUser.value, proxyPassword.value)
 
-    val request = getHttpRequest(url, proxyConfig).postMulti(MultiPart("project_file", "pom.json", "application/json", bytes))
-    val response = request.asString
+      val request = getHttpRequest(url, proxyConfig).postMulti(MultiPart("project_file", "pom.json", "application/json", bytes))
+      val response = request.asString
 
-    handleResponseErrorIfAny(response)
+      handleResponseErrorIfAny(response)
 
-    val projectResponse = getResponse(response)
+      val projectResponse = getResponse(response)
 
-    if (projectResponse.getLicenses_red > 0) {
-      throw new IllegalStateException("Some components violate the license whitelist! " +
-        "More details here: " + baseUrl.value + "/user/projects/" + projectResponse.getId)
+      if (projectResponse.getLicenses_red > 0) {
+        throw new IllegalStateException("Some components violate the license whitelist! " +
+          "More details here: " + baseUrl.value + "/user/projects/" + projectResponse.getId)
+      }
+
+      if (projectResponse.getLicenses_unknown > 0 && licenseCheckBreakByUnknown.value) {
+        throw new IllegalStateException("Some components are without any license! " +
+          "More details here: " + baseUrl.value + "/user/projects/" + projectResponse.getId)
+      }
+
+      mergeWithParent(mergeAfterCreate.value, (organization.value, name.value), (parentGroupId.value, parentArtifactId.value), baseUrl.value, apiPath.value, apiKeyValue, projectResponse.getId, proxyConfig)
+
+      prettyPrint(log, baseUrl.value, projectResponse)
+      log.info("Everything is is fine.")
     }
-
-    if (projectResponse.getLicenses_unknown > 0 && licenseCheckBreakByUnknown.value) {
-      throw new IllegalStateException("Some components are without any license! " +
-        "More details here: " + baseUrl.value + "/user/projects/" + projectResponse.getId)
-    }
-
-    mergeWithParent((organization.value, name.value), (parentGroupId.value, parentArtifactId.value), baseUrl.value, apiPath.value, apiKeyValue, projectResponse.getId, proxyConfig)
-
-    prettyPrint(log, baseUrl.value, projectResponse)
-    log.info("Everything is is fine.")
   }
 
   def prettyPrint(log: Logger, baseUrl: String, projectResponse: ProjectJsonResponse): Unit = {
@@ -286,8 +294,8 @@ object VersionEyePlugin extends sbt.AutoPlugin {
   }
 
   /**
-   * Throw a RuntimeException on non-200 status codes.
-   */
+    * Throw a RuntimeException on non-200 status codes.
+    */
   def handleResponseErrorIfAny(response: HttpResponse[String]): Unit = {
     if (!response.is2xx) {
       val err = getErrorMessage(response);
@@ -297,11 +305,11 @@ object VersionEyePlugin extends sbt.AutoPlugin {
   }
 
   /**
-   * Invoke a metadata merge with the parent artifacts.
-   */
-  def mergeWithParent(projectGA: (String, String), parentGA: (String, String), baseUrl: String, apiPath: String, apiKey: String, requestId: String, proxyConfig: ProxyConfig): Unit = {
+    * Invoke a metadata merge with the parent artifacts.
+    */
+  def mergeWithParent(mergeAfterCreateValue: Boolean, projectGA: (String, String), parentGA: (String, String), baseUrl: String, apiPath: String, apiKey: String, requestId: String, proxyConfig: ProxyConfig): Unit = {
 
-    if (!mergeAfterCreate.value) {
+    if (!mergeAfterCreateValue) {
       return
     }
 
@@ -330,16 +338,16 @@ object VersionEyePlugin extends sbt.AutoPlugin {
   }
 
   /**
-   * Get error message from a HTTP Response (JSON or raw body)
-   * @param response
-   */
+    * Get error message from a HTTP Response (JSON or raw body)
+    * @param response
+    */
   def getErrorMessage(response: HttpResponse[String]): Option[String] = {
     val body = response.body
 
     // application/json
     if (response.contentType.isEmpty
-        || !"application/json".equals(response.contentType.get)
-        || response.body.isEmpty) {
+      || !"application/json".equals(response.contentType.get)
+      || response.body.isEmpty) {
       return None;
     }
 
@@ -358,11 +366,11 @@ object VersionEyePlugin extends sbt.AutoPlugin {
   }
 
   /**
-   * Get a HTTP Request with timeouts and proxy config.
-   * @param url
-   * @param proxyConfig
-   * @return
-   */
+    * Get a HTTP Request with timeouts and proxy config.
+    * @param url
+    * @param proxyConfig
+    * @return
+    */
   def getHttpRequest(url: String, proxyConfig: ProxyConfig): HttpRequest = {
     var http = Http(url);
 
@@ -380,8 +388,8 @@ object VersionEyePlugin extends sbt.AutoPlugin {
   }
 
   /**
-   * Load the API key from project key or a properties file (Home/.m2/, src/qa/resources, src/main/resources)
-   */
+    * Load the API key from project key or a properties file (Home/.m2/, src/qa/resources, src/main/resources)
+    */
   def getApiKey(apiKey: String, propertiesFile: String, baseDirectory: File): String = {
 
     val envApiKey = sys.env.get(VERSIONEYE_API_KEY_ENV)
@@ -423,8 +431,8 @@ object VersionEyePlugin extends sbt.AutoPlugin {
   }
 
   /**
-   * Load the VersionEye Project id from project key or a properties file (Home/.m2/, src/qa/resources, src/main/resources)
-   */
+    * Load the VersionEye Project id from project key or a properties file (Home/.m2/, src/qa/resources, src/main/resources)
+    */
   def getVersionEyeProjectId(projectId: String, propertiesFile: String, baseDirectory: File): String = {
     if (!projectId.isEmpty) {
       return projectId
@@ -448,9 +456,9 @@ object VersionEyePlugin extends sbt.AutoPlugin {
   }
 
   /**
-   * Serialize a map to JSON.
-   * @return byte array
-   */
+    * Serialize a map to JSON.
+    * @return byte array
+    */
   def toJsonBytes(pom: Map[String, Serializable]): Array[Byte] = {
     val mapper = new ObjectMapper()
     mapper.registerModule(DefaultScalaModule)

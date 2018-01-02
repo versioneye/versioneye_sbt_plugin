@@ -6,20 +6,24 @@ organizationHomepage := Some(new URL("https://www.versioneye.com"))
 description := "This is the sbt plugin for https://www.VersionEye.com. It allows you to create and update a project at VersionEye. You can find a complete documentation of this project on GitHub: https://github.com/versioneye/versioneye_sbt_plugin."
 startYear := Some(2015)
 
-scalaVersion := "2.10.2"
+scalaVersion := "2.12.4"
 
-libraryDependencies ++= Seq("com.fasterxml.jackson.module" %%  "jackson-module-scala" % "2.6.1",
-"org.scala-lang" %  "scala-library" % "2.10.2", "org.scalaj" %% "scalaj-http" % "1.1.5")
+crossSbtVersions := Vector("0.13.16", "1.0.4")
+
+
+libraryDependencies ++= Seq("com.fasterxml.jackson.module" %%  "jackson-module-scala" % "2.9.1",
+                            "org.scalaj" %% "scalaj-http" % "2.3.0")
 
 publishArtifact in Test := false
 publishMavenStyle := true
 pomIncludeRepository := { _ => false }
 
 // scripted-plugin
-ScriptedPlugin.scriptedSettings
-scriptedBufferLog  := false
-scriptedLaunchOpts <+= version { "-Dplugin.version=" + _ }
-watchSources       <++= sourceDirectory map { path => (path ** "*").get }
+scriptedLaunchOpts := { scriptedLaunchOpts.value ++
+  Seq("-Xmx1024M", "-Dplugin.version=" + version.value)
+}
+scriptedBufferLog := false
+watchSources ++= { sourceDirectory.map { path => (path ** "*").get }.value }
 
 // maven repositories
 resolvers ++= Seq(
@@ -28,10 +32,10 @@ resolvers ++= Seq(
   "Local Maven Repository" at ("file://" + Path.userHome.absolutePath + "/.m2/repository")
 )
 
-publishTo <<= version { (v: String) =>
+publishTo := {
   // Some(Resolver.file("file",  new File(Path.userHome.absolutePath+"/.m2/repository")))
   val nexus = "https://oss.sonatype.org/"
-  if (v.trim.endsWith("SNAPSHOT"))
+  if (version.value.trim.endsWith("SNAPSHOT"))
     Some("snapshots" at nexus + "content/repositories/snapshots")
   else
     Some("releases" at nexus + "service/local/staging/deploy/maven2")
